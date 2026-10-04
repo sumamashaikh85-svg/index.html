@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Routine & Schedule Assistant AI</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #f4f6f8; --surface-color: #ffffff; --text-primary: #1e293b; --text-secondary: #64748b;
+            --primary-color: #4f46e5; --primary-hover: #4338ca; --success-color: #10b981; --danger-color: #ef4444;
+            --warning-color: #f59e0b; --border-color: #e2e8f0; --nav-bg: #ffffff;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --border-radius: 16px; --transition: all 0.3s ease;
+        }
+        [data-theme="dark"] {
+            --bg-color: #0f172a; --surface-color: #1e293b; --text-primary: #f8fafc; --text-secondary: #94a3b8;
+            --border-color: #334155; --nav-bg: #1e293b; --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-color); color: var(--text-primary); transition: var(--transition); overflow: hidden; }
+        .app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+        .view-section { flex: 1; overflow-y: auto; padding: 20px 20px 90px 20px; display: none; animation: fadeIn 0.3s; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        h1, h2, h3 { color: var(--text-primary); margin-bottom: 10px; font-weight: 600; } 
+        p { color: var(--text-secondary); line-height: 1.5; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--nav-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; font-size: 12px; flex: 1; transition: var(--transition); }
+        .nav-item i { font-size: 20px; margin-bottom: 4px; } .nav-item.active { color: var(--primary-color); }
+        .nav-add-btn { background: var(--primary-color); color: white; border-radius: 50%; width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; transform: translateY(-15px); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4); font-size: 20px; }
+        .card { background: var(--surface-color); border-radius: var(--border-radius); padding: 20px; box-shadow: var(--shadow); margin-bottom: 15px; }
+        .progress-container { background: var(--border-color); border-radius: 10px; height: 10px; width: 100%; margin-top: 10px; overflow: hidden; }
+        .progress-bar { background: var(--primary-color); height: 100%; width: 0%; transition: width 0.5s ease; border-radius: 10px; }
+        .task-list { display: flex; flex-direction: column; gap: 10px; }
+        .task-item { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: var(--transition); box-shadow: var(--shadow); }
+        .task-item:active { transform: scale(0.98); }
+        .task-checkbox { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--text-secondary); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: var(--transition); }
+        .task-item.completed .task-checkbox { background: var(--success-color); border-color: var(--success-color); color: white; }
+        .task-info { flex: 1; min-width: 0; } 
+        .task-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .task-item.completed .task-title { text-decoration: line-through; color: var(--text-secondary); }
+        .task-meta { font-size: 12px; color: var(--text-secondary); display: flex; gap: 10px; flex-wrap: wrap; }
+        .tag { padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+        .tag.priority-High { background: #fee2e2; color: #ef4444; } .tag.priority-Medium { background: #fef3c7; color: #f59e0b; } .tag.priority-Low { background: #e0f2fe; color: #0ea5e9; } 
+        .tag.status-missed { background: #fee2e2; color: #ef4444; } .tag.status-pending { background: #e0f2fe; color: #0ea5e9; } .tag.status-completed { background: #d1fae5; color: #10b981; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; justify-content: center; align-items: flex-end; backdrop-filter: blur(2px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--surface-color); width: 100%; max-width: 600px; max-height: 90vh; border-radius: 20px 20px 0 0; padding: 20px; overflow-y: auto; animation: slideUp 0.3s; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .form-group { margin-bottom: 15px; } label { display: block; margin-bottom: 5px; font-size: 14px; color: var(--text-secondary); font-weight: 500;}
+        input, select, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-primary); font-size: 16px; outline: none; transition: var(--transition); }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        .btn { padding: 12px 20px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; transition: var(--transition); display:flex; justify-content:center; align-items:center; gap:8px;}
+        .btn-primary { background: var(--primary-color); color: white; margin-top: 10px; }
+        .btn-secondary { background: var(--bg-color); color: var(--text-primary); margin-top: 10px; border: 1px solid var(--border-color); }
+        .btn-danger { background: var(--danger-color); color: white; margin-top: 10px; }
+        .flex-row { display: flex; gap: 10px; } .flex-row .form-group { flex: 1; }
+        .toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px; pointer-events: none; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: fadeDown 0.3s; word-break: break-word; }
+        .toast.success { background: var(--success-color); } .toast.error { background: var(--danger-color); } .toast.warning { background: var(--warning-color); }
+        @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .date-navigator { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .date-navigator button { background: var(--surface-color); border: 1px solid var(--border-color); width: 40px; height: 40px; border-radius: 8px; font-size: 16px; color: var(--primary-color); cursor: pointer; transition: var(--transition); }
+        .date-navigator button:active { transform: scale(0.9); }
+        .chart-container { position: relative; height: 250px; width: 100%; margin-top: 20px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;}
+        .stat-card { background: var(--bg-color); padding: 15px; border-radius: 12px; text-align: center; }
+        .stat-card h4 { font-size: 24px; color: var(--primary-color); margin-bottom: 5px; }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+        .empty-state i { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
+        #global-loader { position: fixed; inset: 0; background: var(--bg-color); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s; }
+        .spinner { border: 4px solid var(--border-color); border-top: 4px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .ai-card { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; cursor: pointer; transition: transform 0.2s; border: none; }
+        .ai-card:active { transform: scale(0.98); } .ai-card p, .ai-card h3 { color: white; }
+        #view-ai { padding: 0; display: none; flex-direction: column; height: 100%; }
+        #view-ai.active { display: flex; }
+        .ai-header { padding: 15px 20px; background: var(--surface-color); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .quick-actions-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px 20px; background: var(--bg-color); flex-shrink: 0; scrollbar-width: none; border-bottom: 1px solid var(--border-color); }
+        .quick-actions-container::-webkit-scrollbar { display: none; }
+        .quick-action-chip { background: var(--surface-color); border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 20px; font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; cursor: pointer; transition: var(--transition); box-shadow: var(--shadow); }
+        .quick-action-chip:active { background: var(--border-color); transform: scale(0.95); }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; padding-bottom: 140px; scroll-behavior: smooth; }
+        .chat-bubble { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.5; position: relative; animation: fadeIn 0.3s; word-wrap: break-word; }
+        .chat-bubble.ai { background: var(--surface-color); color: var(--text-primary); align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: var(--shadow); border: 1px solid var(--border-color); }
+        .chat-bubble.user { background: var(--primary-color); color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2); }
+        .chat-timestamp { font-size: 10px; margin-top: 6px; opacity: 0.7; text-align: right; }
+        .chat-input-wrapper { position: fixed; bottom: calc(60px + env(safe-area-inset-bottom)); left: 0; right: 0; padding: 12px 20px; background: var(--surface-color); border-top: 1px solid var(--border-color); display: flex; gap: 10px; align-items: flex-end; z-index: 50; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); }
+        .chat-input { flex: 1; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 24px; padding: 12px 20px; color: var(--text-primary); max-height: 120px; outline: none; resize: none; font-family: inherit; font-size: 15px; overflow-y: auto; line-height: 1.4; }
+        .chat-input:focus { border-color: var(--primary-color); }
+        .chat-btn { background: var(--primary-color); color: white; border: none; width: 46px; height: 46px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; cursor: pointer; transition: var(--transition); flex-shrink: 0; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); }
+        .chat-btn:active { transform: scale(0.9); }
+        .chat-btn:disabled { background: var(--text-secondary); cursor: not-allowed; box-shadow: none; }
+        .chat-btn.voice-btn { background: var(--bg-color); color: var(--text-secondary); border: 1px solid var(--border-color); box-shadow: none; }
+        .chat-btn.voice-btn.recording { background: var(--danger-color); color: white; border: none; animation: pulse 1.5s infinite; }
+        .ai-action-card { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; margin-top: 12px; }
+        .ai-action-card h4 { font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-weight: 600;}
+        .ai-action-card p { font-size: 13px; color: var(--text-secondary); margin-bottom: 0; line-height: 1.4;}
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); box-shadow: 0 0 10px var(--danger-color); } 100% { transform: scale(1); } }
+        .typing-indicator { display: flex; gap: 4px; padding: 8px 4px; align-items: center; }
+        .typing-dot { width: 6px; height: 6px; background: var(--text-secondary); border-radius: 50%; animation: typing 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; } .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); opacity: 0.4;} 40% { transform: scale(1); opacity: 1;} }
+    </style>
+</head>
+<body data-theme="system">
+
+    <!-- GLOBAL LOADER -->
+    <div id="global-loader">
+        <div class="spinner"></div>
+        <p style="font-weight: 500; color: var(--text-secondary);" id="loader-text">Loading secure session...</p>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ===== MAIN APP ===== -->
+    <div class="app-container" id="appContainer">
+        <main id="view-home" class="view-section active">
+            <h2>Good <span id="greeting-time">Morning</span> 👋</h2>
+            <p id="current-date-display" style="font-weight: 500;">Date</p>
+            <div class="card" style="margin-top: 20px;">
+                <h3 style="font-size: 16px;"><i class="fa-solid fa-chart-line" style="color: var(--primary-color);"></i> Today's Progress</h3>
+                <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 14px;">
+                    <span id="progress-text" style="color: var(--text-secondary); font-weight: 500;">Completed: 0 / 0</span>
+                    <strong id="progress-percent" style="color: var(--primary-color);">0%</strong>
+                </div>
+                <div class="progress-container"><div class="progress-bar" id="progress-bar-fill"></div></div>
+            </div>
+            <div class="card ai-card" onclick="app.switchTab('ai')">
+                <h3 style="font-size: 18px;"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Assistant</h3>
+                <p style="margin-top:8px; font-size:14px; opacity: 0.9;">Plan your day effortlessly using natural language. Tap here to chat.</p>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 10px;">
+                <h3 style="margin: 0; font-size: 18px;">Next Task</h3>
+            </div>
+            <div id="next-task-container"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 10px;">
+                <h3 style="margin: 0; font-size: 18px;">Today's Schedule</h3>
+                <button onclick="app.switchTab('schedule')" style="background:none; border:none; color:var(--primary-color); font-weight: 600; cursor:pointer;">See All</button>
+            </div>
+            <div id="today-tasks-list" class="task-list"></div>
+        </main>
+
+        <main id="view-schedule" class="view-section">
+            <div class="date-navigator">
+                <button id="prev-day-btn" aria-label="Previous Day"><i class="fa-solid fa-chevron-left"></i></button>
+                <h3 id="schedule-date-display" style="margin:0; font-size: 18px;">Today</h3>
+                <button id="next-day-btn" aria-label="Next Day"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div class="form-group" style="position: relative;">
+                <i class="fa-solid fa-search" style="position: absolute; left: 15px; top: 15px; color: var(--text-secondary);"></i>
+                <input type="text" id="search-task" placeholder="Search tasks..." oninput="app.renderSchedule()" style="padding-left: 40px;">
+            </div>
+            <div class="flex-row" style="margin-bottom: 20px;">
+                <select id="filter-category" onchange="app.renderSchedule()"><option value="All">All Categories</option></select>
+                <select id="filter-status" onchange="app.renderSchedule()">
+                    <option value="All">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                    <option value="missed">Missed</option>
+                </select>
+            </div>
+            <div id="schedule-tasks-list" class="task-list"></div>
+        </main>
+
+        <main id="view-progress" class="view-section">
+            <h2>Analytics</h2>
+            <p>Your performance overview.</p>
+            <div class="stats-grid">
+                <div class="stat-card"><h4 id="stat-streak">0</h4><p style="font-size: 13px; font-weight: 500;">Day Streak <i class="fa-solid fa-fire" style="color: #f97316;"></i></p></div>
+                <div class="stat-card"><h4 id="stat-completed" style="color: var(--success-color);">0</h4><p style="font-size: 13px; font-weight: 500;">Total Completed</p></div>
+                <div class="stat-card"><h4 id="stat-missed" style="color: var(--danger-color);">0</h4><p style="font-size: 13px; font-weight: 500;">Total Missed</p></div>
+                <div class="stat-card"><h4 id="stat-today-pct">0%</h4><p style="font-size: 13px; font-weight: 500;">Today's Rate</p></div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <h3 style="font-size: 16px;">Last 7 Days Completion</h3>
+                <div class="chart-container"><canvas id="progressChart"></canvas></div>
+            </div>
+        </main>
+
+        <main id="view-settings" class="view-section">
+            <h2>Settings</h2>
+            <div class="card" style="border-left: 4px solid var(--primary-color);">
+                <h3><i class="fa-solid fa-key"></i> AI Configuration</h3>
+                <p style="font-size: 13px; margin-bottom:12px; line-height: 1.5;">To enable the advanced multi-step AI tool calling, enter your OpenAI API key below. It is stored securely in your browser's local storage and never sent to our servers.</p>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <input type="password" id="setting-openai-key" placeholder="sk-..." onchange="app.saveApiKey()">
+                    <p style="font-size: 11px; margin-top: 6px; color: var(--success-color);" id="key-status-msg"></p>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Preferences</h3>
+                <div class="form-group">
+                    <label>Appearance</label>
+                    <select id="setting-theme" onchange="app.saveSettings()">
+                        <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Default Reminder (Mins)</label>
+                    <select id="setting-reminder" onchange="app.saveSettings()">
+                        <option value="0">None</option><option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="30">30</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="margin:0;">Auto Reschedule Missed Tasks</label>
+                    <input type="checkbox" id="setting-autoreschedule" onchange="app.saveSettings()" style="width:20px; height:20px;">
+                </div>
+            </div>
+            <div class="card">
+                <h3>Categories</h3>
+                <div class="flex-row">
+                    <input type="text" id="new-category-input" placeholder="Add custom category..." maxlength="20">
+                    <button class="btn btn-primary" style="margin-top:0; width:auto; padding: 0 20px;" onclick="app.addCategory()">Add</button>
+                </div>
+                <div id="categories-list" style="margin-top:15px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+            </div>
+            <div class="card">
+                <h3>Data Management</h3>
+                <p style="font-size: 13px; margin-bottom: 12px;">Backup or restore your tasks and settings.</p>
+                <div class="flex-row">
+                    <button class="btn btn-secondary" style="margin-top:0;" onclick="app.exportData()"><i class="fa-solid fa-download"></i> Export</button>
+                    <button class="btn btn-secondary" style="margin-top:0;" onclick="document.getElementById('import-file').click()"><i class="fa-solid fa-upload"></i> Import</button>
+                    <input type="file" id="import-file" style="display:none" accept=".json" onchange="app.importData(event)">
+                </div>
+                <p style="font-size:11px; margin-top:15px; color: var(--text-secondary);">Secure UID: <span id="display-user-id" style="user-select:all; font-family: monospace;"></span></p>
+            </div>
+        </main>
+
+        <main id="view-ai" class="view-section">
+            <div class="ai-header">
+                <h3 style="margin:0; font-size: 18px;"><i class="fa-solid fa-robot" style="color:var(--primary-color);"></i> Assistant</h3>
+                <button style="background:none; border:none; color:var(--text-secondary); font-size:14px; font-weight: 500; cursor:pointer; padding: 5px;" onclick="AIService.clearChat()"><i class="fa-solid fa-trash-can"></i> Clear</button>
+            </div>
+            <div class="quick-actions-container">
+                <div class="quick-action-chip" onclick="AIService.sendQuickAction('Mera aaj ka schedule dikhao')"><i class="fa-regular fa-calendar"></i> Today's Schedule</div>
+                <div class="quick-action-chip" onclick="AIService.sendQuickAction('Aaj mera next task kya hai?')"><i class="fa-solid fa-play"></i> Next Task</div>
+                <div class="quick-action-chip" onclick="AIService.sendQuickAction('Mere liye kal ka schedule bana do')"><i class="fa-solid fa-wand-magic-sparkles"></i> Plan Tomorrow</div>
+                <div class="quick-action-chip" onclick="AIService.sendQuickAction('Meri progress kaisi ja rahi hai?')"><i class="fa-solid fa-chart-simple"></i> My Progress</div>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-bubble ai">
+                    <strong>Assalamualaikum 👋</strong><br><br>
+                    I'm your intelligent routine manager. I can securely read and update your schedule.<br><br>
+                    <em>Note: Ensure your OpenAI key is configured in Settings.</em><br><br>
+                    Try saying: <strong>"Kal subah 8 baje maths parhna hai"</strong>
+                    <div class="chat-timestamp">Now</div>
+                </div>
+            </div>
+            <div class="chat-input-wrapper">
+                <button class="chat-btn voice-btn" id="ai-voice-btn" onclick="AIService.toggleVoice()" aria-label="Voice Input"><i class="fa-solid fa-microphone"></i></button>
+                <textarea class="chat-input" id="ai-input" rows="1" placeholder="Type a message..."></textarea>
+                <button class="chat-btn" id="ai-send-btn" onclick="AIService.sendMessage()" aria-label="Send Message"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </main>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" id="nav-home" onclick="app.switchTab('home')"><i class="fa-solid fa-house"></i><span>Home</span></div>
+            <div class="nav-item" id="nav-schedule" onclick="app.switchTab('schedule')"><i class="fa-solid fa-calendar-day"></i><span>Schedule</span></div>
+            <div class="nav-item" onclick="app.openModal('modal-add-task')"><div class="nav-add-btn"><i class="fa-solid fa-plus"></i></div></div>
+            <div class="nav-item" id="nav-ai" onclick="app.switchTab('ai')"><i class="fa-solid fa-robot"></i><span>AI</span></div>
+            <div class="nav-item" id="nav-progress" onclick="app.switchTab('progress')"><i class="fa-solid fa-chart-pie"></i><span>Progress</span></div>
+            <div class="nav-item" id="nav-settings" onclick="app.switchTab('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
+        </nav>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal-overlay" id="modal-add-task">
+        <div class="modal-content">
+            <h2 id="modal-task-title">Add Task</h2>
+            <form id="form-task" onsubmit="app.saveTask(event)">
+                <input type="hidden" id="task-id">
+                <div class="form-group"><label>Title *</label><input type="text" id="task-title" required placeholder="e.g., Read Quran"></div>
+                <div class="form-group"><label>Description</label><textarea id="task-desc" rows="2" placeholder="Optional notes..."></textarea></div>
+                <div class="form-group"><label>Date *</label><input type="date" id="task-date" required></div>
+                <div class="flex-row">
+                    <div class="form-group"><label>Start Time *</label><input type="time" id="task-start" required></div>
+                    <div class="form-group"><label>End Time *</label><input type="time" id="task-end" required></div>
+                </div>
+                <div class="flex-row">
+                    <div class="form-group"><label>Category</label><select id="task-category"></select></div>
+                    <div class="form-group"><label>Priority</label><select id="task-priority"><option value="Low">Low</option><option value="Medium" selected>Medium</option><option value="High">High</option></select></div>
+                </div>
+                <div class="flex-row">
+                    <button type="button" class="btn btn-secondary" onclick="app.closeModal('modal-add-task')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-task">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-task-details">
+        <div class="modal-content">
+            <h2 id="detail-title" style="margin-bottom: 5px; word-break: break-word;">Task Title</h2>
+            <div style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <span id="detail-status" class="tag"></span>
+                <span id="detail-priority" class="tag"></span>
+                <span id="detail-category" class="tag" style="background:var(--border-color); color:var(--text-primary);"></span>
+            </div>
+            <div style="background: var(--bg-color); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px;">
+                <p style="margin-bottom: 5px;"><strong><i class="fa-regular fa-calendar" style="color:var(--primary-color); width:20px;"></i> Date:</strong> <span id="detail-date" style="color:var(--text-primary);"></span></p>
+                <p style="margin-bottom: 0;"><strong><i class="fa-regular fa-clock" style="color:var(--primary-color); width:20px;"></i> Time:</strong> <span id="detail-time" style="color:var(--text-primary);"></span></p>
+            </div>
+            <h4 style="font-size: 14px; margin-bottom: 5px;">Notes:</h4>
+            <p style="white-space: pre-wrap; background: var(--bg-color); padding: 12px; border-radius: 8px; font-size: 14px;" id="detail-desc"></p>
+            <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-primary" id="btn-complete-task" onclick="app.completeCurrentTask()">Mark Complete</button>
+                <div class="flex-row">
+                    <button class="btn btn-secondary" style="margin-top:0;" onclick="app.editCurrentTask()"><i class="fa-solid fa-pen"></i> Edit</button>
+                    <button class="btn btn-secondary" style="margin-top:0;" onclick="app.rescheduleCurrentTask()"><i class="fa-solid fa-clock-rotate-left"></i> Reschedule</button>
+                </div>
+                <button class="btn btn-danger" onclick="app.deleteCurrentTask()"><i class="fa-solid fa-trash"></i> Delete Task</button>
+                <button class="btn btn-secondary" style="border:none; background: transparent;" onclick="app.closeModal('modal-task-details')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================== -->
+    <!-- SCRIPT (Full) -->
+    <!-- ================================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // ==========================================
+        // FIREBASE CONFIG
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdAEiC2SE3sw3sNU1lgPQyhw4HyfhPLis",
+            authDomain: "f-id-buying-selling-7f257.firebaseapp.com",
+            projectId: "f-id-buying-selling-7f257",
+            storageBucket: "f-id-buying-selling-7f257.firebasestorage.app",
+            messagingSenderId: "1077485536937",
+            appId: "1:1077485536937:web:01415331d6d7b92311cbb8"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const db = getFirestore(firebaseApp);
+        const auth = getAuth(firebaseApp);
+
+        // ==========================================
+        // STATE & UTILITIES
+        // ==========================================
+        window.state = { 
+            tasks: [], 
+            categories: ["Study", "Prayer", "Quran", "Exercise", "Work", "Personal", "Other"], 
+            settings: { theme: "system", defaultReminder: 0, autoReschedule: false }, 
+            scheduleDate: null, 
+            currentTask: null, 
+            chartInstance: null,
+            listeners: {}
+        };
+        
+        const Toast = { 
+            show(msg, type = 'success') { 
+                const c = document.getElementById('toast-container');
+                const t = document.createElement('div'); 
+                t.className = `toast ${type}`; 
+                t.innerHTML = type === 'success' ? `<i class="fa-solid fa-check-circle"></i> ${Utils.escapeHTML(msg)}` 
+                            : type === 'error' ? `<i class="fa-solid fa-circle-exclamation"></i> ${Utils.escapeHTML(msg)}`
+                            : type === 'warning' ? `<i class="fa-solid fa-triangle-exclamation"></i> ${Utils.escapeHTML(msg)}`
+                            : Utils.escapeHTML(msg);
+                c.appendChild(t); 
+                setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000); 
+            } 
+        };
+
+        const Utils = { 
+            getLocalDate(d = new Date()) {
+                const offset = d.getTimezoneOffset();
+                return new Date(d.getTime() - (offset * 60000)).toISOString().split('T')[0];
+            },
+            getLocalTime(d = new Date()) {
+                return d.toTimeString().substring(0, 5);
+            },
+            formatDate(ds) { 
+                if (!ds) return "";
+                const d = new Date(ds + 'T12:00:00');
+                return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); 
+            }, 
+            formatTime(ts) { 
+                if(!ts) return "";
+                const [h, m] = ts.split(':'); 
+                const d = new Date(); d.setHours(h, m, 0); 
+                return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); 
+            }, 
+            isToday(ds) { return ds === this.getLocalDate(); }, 
+            generateId() { return Math.random().toString(36).substring(2, 10); },
+            escapeHTML(str) { 
+                return String(str || "").replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); 
+            },
+            checkMissedTasks() {
+                const today = this.getLocalDate();
+                const nowTime = this.getLocalTime();
+                let needsUpdate = false;
+                window.state.tasks.forEach(t => {
+                    if (t.status === 'pending') {
+                        if (t.date < today || (t.date === today && t.endTime < nowTime)) {
+                            t.status = 'missed';
+                            needsUpdate = true;
+                        }
+                    }
+                });
+                if(needsUpdate) window.app.renderAll();
+            }
+        };
+
+        // ==========================================
+        // AI SERVICE
+        // ==========================================
+        window.AIService = {
+            isProcessing: false, 
+            recognition: null, 
+            chatHistory: [],
+
+            init() {
+                const input = document.getElementById('ai-input');
+                input.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = (this.scrollHeight < 120 ? this.scrollHeight : 120) + 'px';
+                });
+                input.addEventListener('keypress', (e) => { 
+                    if (e.key === 'Enter' && !e.shiftKey) { 
+                        e.preventDefault(); 
+                        this.sendMessage(); 
+                    } 
+                });
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    this.recognition = new SpeechRecognition();
+                    this.recognition.lang = 'ur-PK'; 
+                    this.recognition.continuous = false;
+                    this.recognition.interimResults = false;
+                    this.recognition.onresult = (e) => { 
+                        const transcript = e.results[0][0].transcript;
+                        const inputEl = document.getElementById('ai-input');
+                        inputEl.value = inputEl.value ? inputEl.value + ' ' + transcript : transcript; 
+                        this.sendMessage(); 
+                    };
+                    this.recognition.onend = () => document.getElementById('ai-voice-btn').classList.remove('recording');
+                    this.recognition.onerror = (e) => {
+                        console.warn("Speech Recognition Error", e.error);
+                        document.getElementById('ai-voice-btn').classList.remove('recording');
+                        if (e.error !== 'no-speech') Toast.show("Voice recognition failed.", "error");
+                    };
+                } else { 
+                    document.getElementById('ai-voice-btn').style.display = 'none'; 
+                }
+            },
+
+            toggleVoice() {
+                if (!this.recognition) return Toast.show("Voice input not supported on this browser.", "error");
+                const btn = document.getElementById('ai-voice-btn');
+                if(btn.classList.contains('recording')){
+                    this.recognition.stop();
+                } else {
+                    try {
+                        this.recognition.start();
+                        btn.classList.add('recording');
+                    } catch(e) {
+                        console.warn(e);
+                    }
+                }
+            },
+
+            sendQuickAction(text) { 
+                document.getElementById('ai-input').value = text; 
+                this.sendMessage(); 
+            },
+            
+            clearChat() {
+                if(confirm("Are you sure you want to clear the AI chat history?")) {
+                    this.chatHistory = [];
+                    document.getElementById('chat-messages').innerHTML = `
+                        <div class="chat-bubble ai">
+                            <strong>Chat Cleared <i class="fa-solid fa-broom"></i></strong><br><br>How can I assist you now?
+                            <div class="chat-timestamp">Now</div>
+                        </div>`;
+                }
+            },
+
+            async sendMessage() {
+                const apiKey = localStorage.getItem("openai_api_key");
+                if (!apiKey) {
+                    Toast.show("API Key required. Please configure it in Settings.", "warning");
+                    window.app.switchTab('settings'); 
+                    return;
+                }
+                const inputEl = document.getElementById('ai-input');
+                const text = inputEl.value.trim();
+                if (!text || this.isProcessing) return;
+
+                inputEl.value = '';
+                inputEl.style.height = 'auto';
+                this.isProcessing = true;
+                this.updateInputState(true);
+
+                this.renderMessage(text, 'user');
+                this.chatHistory.push({ role: 'user', content: text });
+                if(this.chatHistory.length > 12) this.chatHistory = this.chatHistory.slice(this.chatHistory.length - 12);
+
+                const typingId = this.renderTypingIndicator();
+
+                try {
+                    const todayStr = Utils.getLocalDate();
+                    const currentTime = Utils.getLocalTime();
+                    
+                    const systemPrompt = `You are a Daily Routine AI Assistant inside a personal productivity app.
+CURRENT CONTEXT:
+- Today's Date: ${todayStr}
+- Current Time: ${currentTime}
+- Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
+
+RULES:
+1. ALWAYS use tools to interact with the schedule. NEVER invent tasks or IDs.
+2. If asked to update/delete/complete a task, FIRST use get_tasks to find the correct taskId. If multiple match, ASK the user to clarify. NEVER guess an ID.
+3. If asked to add a task, validate date (YYYY-MM-DD) and time (HH:MM 24-hour). If missing, ask the user.
+4. Understand relative dates (kal = tomorrow, parson = day after tomorrow). Resolve them exactly based on the Current Date.
+5. Speak concisely in the user's language (English, Urdu, or Roman Urdu).
+6. Confirm actions briefly after a tool returns success. Do not say "I added it" if the tool hasn't succeeded.`;
+
+                    let messages = [{ role: "system", content: systemPrompt }, ...this.chatHistory];
+
+                    const tools = [
+                        { type: "function", function: { name: "add_task", parameters: { type: "object", properties: { title: { type: "string" }, description: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD" }, startTime: { type: "string", description: "HH:MM (24-hour)" }, endTime: { type: "string", description: "HH:MM (24-hour)" }, category: { type: "string", enum: window.state.categories }, priority: { type: "string", enum: ["Low", "Medium", "High"] } }, required: ["title", "date", "startTime", "endTime"] } } },
+                        { type: "function", function: { name: "get_tasks", parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD" }, status: { type: "string", enum: ["pending", "completed", "missed", "all"] }, search_query: { type: "string", description: "Keywords in title" } } } } },
+                        { type: "function", function: { name: "update_task", parameters: { type: "object", properties: { taskId: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD" }, startTime: { type: "string", description: "HH:MM" }, endTime: { type: "string", description: "HH:MM" } }, required: ["taskId"] } } },
+                        { type: "function", function: { name: "complete_task", parameters: { type: "object", properties: { taskId: { type: "string" } }, required: ["taskId"] } } },
+                        { type: "function", function: { name: "delete_task", parameters: { type: "object", properties: { taskId: { type: "string" } }, required: ["taskId"] } } },
+                        { type: "function", function: { name: "get_progress", parameters: { type: "object", properties: {} } } }
+                    ];
+
+                    let keepLooping = true;
+                    let iterationCount = 0;
+                    const MAX_ITERATIONS = 5;
+                    let actionCards = [];
+                    let finalResponse = "";
+
+                    while (keepLooping && iterationCount < MAX_ITERATIONS) {
+                        iterationCount++;
+                        let response;
+                        try {
+                            response = await fetch("https://api.openai.com/v1/chat/completions", {
+                                method: "POST", 
+                                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+                                body: JSON.stringify({ model: "gpt-4o-mini", messages: messages, tools: tools, tool_choice: "auto" }),
+                                signal: AbortSignal.timeout(15000)
+                            });
+                        } catch (netErr) {
+                            throw new Error("Network or Timeout: Unable to reach AI server.");
+                        }
+                        
+                        if(!response.ok) {
+                            const errData = await response.json().catch(()=>({}));
+                            if(response.status === 401) throw new Error("Invalid OpenAI API Key. Please update it in Settings.");
+                            if(response.status === 429) throw new Error("Rate limit exceeded or quota exhausted on OpenAI.");
+                            throw new Error(errData.error?.message || response.statusText);
+                        }
+                        
+                        let data = await response.json();
+                        if(!data.choices || !data.choices.length) throw new Error("Malformed AI response.");
+                        
+                        let responseMessage = data.choices[0].message;
+                        messages.push(responseMessage);
+
+                        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
+                            for (let toolCall of responseMessage.tool_calls) {
+                                let resultData = { success: false };
+                                try {
+                                    const args = JSON.parse(toolCall.function.arguments);
+                                    
+                                    if (toolCall.function.name === "add_task") {
+                                        if(!args.title || !args.date || !args.startTime || !args.endTime) throw new Error("Missing required fields.");
+                                        if(args.startTime >= args.endTime) throw new Error("End time must be after start time.");
+                                        
+                                        const newTask = { title: args.title, description: args.description || "", date: args.date, startTime: args.startTime, endTime: args.endTime, category: args.category || "Other", priority: args.priority || "Medium", status: "pending", createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+                                        const docRef = await addDoc(collection(db, `users/${window.uid}/tasks`), newTask);
+                                        resultData = { success: true, taskId: docRef.id, task: newTask };
+                                        actionCards.push({ type: "task_created", ...newTask });
+                                    } 
+                                    else if (toolCall.function.name === "get_tasks") {
+                                        let filtered = window.state.tasks;
+                                        if (args.date) filtered = filtered.filter(t => t.date === args.date);
+                                        if (args.status && args.status !== 'all') filtered = filtered.filter(t => t.status === args.status);
+                                        if (args.search_query) {
+                                            const sq = args.search_query.toLowerCase();
+                                            filtered = filtered.filter(t => t.title.toLowerCase().includes(sq) || (t.description||"").toLowerCase().includes(sq));
+                                        }
+                                        resultData = { success: true, count: filtered.length, tasks: filtered.map(t => ({id: t.id, title: t.title, date: t.date, time: `${t.startTime}-${t.endTime}`, status: t.status})) };
+                                    }
+                                    else if (toolCall.function.name === "complete_task") {
+                                        const tExists = window.state.tasks.find(x => x.id === args.taskId);
+                                        if(!tExists) throw new Error("Task ID not found.");
+                                        await updateDoc(doc(db, `users/${window.uid}/tasks/${args.taskId}`), { status: "completed", completedAt: serverTimestamp() });
+                                        resultData = { success: true, taskId: args.taskId };
+                                        actionCards.push({ type: "task_completed", title: tExists.title });
+                                    }
+                                    else if (toolCall.function.name === "delete_task") {
+                                        const tExists = window.state.tasks.find(x => x.id === args.taskId);
+                                        if(!tExists) throw new Error("Task ID not found.");
+                                        await deleteDoc(doc(db, `users/${window.uid}/tasks/${args.taskId}`));
+                                        resultData = { success: true, taskId: args.taskId };
+                                        actionCards.push({ type: "task_deleted", title: tExists.title });
+                                    }
+                                    else if (toolCall.function.name === "update_task") {
+                                        const tExists = window.state.tasks.find(x => x.id === args.taskId);
+                                        if(!tExists) throw new Error("Task ID not found.");
+                                        const updates = { updatedAt: serverTimestamp() };
+                                        if(args.date) updates.date = args.date; 
+                                        if(args.startTime) updates.startTime = args.startTime; 
+                                        if(args.endTime) updates.endTime = args.endTime;
+                                        await updateDoc(doc(db, `users/${window.uid}/tasks/${args.taskId}`), updates);
+                                        resultData = { success: true, updates };
+                                        actionCards.push({ type: "task_rescheduled", title: tExists.title, updates });
+                                    }
+                                    else if (toolCall.function.name === "get_progress") {
+                                        let c=0, m=0, p=0;
+                                        window.state.tasks.forEach(t => { if(t.status==='completed')c++; else if(t.status==='missed')m++; else p++; });
+                                        resultData = { success: true, stats: { completed: c, missed: m, pending: p, total: window.state.tasks.length } };
+                                    }
+                                    else {
+                                        throw new Error("Unknown tool called.");
+                                    }
+                                } catch (e) {
+                                    resultData = { success: false, error: e.message };
+                                }
+                                messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(resultData) });
+                            }
+                        } else {
+                            keepLooping = false;
+                            finalResponse = responseMessage.content;
+                        }
+                    }
+
+                    if (iterationCount >= MAX_ITERATIONS) {
+                        finalResponse = "Mujhe samajhne mein thori mushkil ho rahi hai. Please clearly bataien aap kya karna chahte hain.";
+                    }
+
+                    document.getElementById(typingId).remove();
+                    this.chatHistory.push({ role: 'assistant', content: finalResponse });
+                    this.renderMessage(finalResponse, 'ai', actionCards);
+
+                } catch (error) {
+                    console.error("AI Service Error:", error);
+                    document.getElementById(typingId).remove();
+                    this.renderMessage(`⚠️ ${Utils.escapeHTML(error.message || "Connection failed. Please try again.")}`, 'ai');
+                    this.chatHistory.pop(); 
+                } finally {
+                    this.isProcessing = false;
+                    this.updateInputState(false);
+                    this.scrollToBottom();
+                }
+            },
+
+            updateInputState(disabled) {
+                const btn = document.getElementById('ai-send-btn');
+                const inp = document.getElementById('ai-input');
+                btn.disabled = disabled;
+                inp.disabled = disabled;
+                if(!disabled) inp.focus();
+            },
+
+            renderMessage(text, sender, actions = []) {
+                const container = document.getElementById('chat-messages');
+                const bubble = document.createElement('div');
+                bubble.className = `chat-bubble ${sender}`;
+                const time = Utils.getLocalTime();
+                let safeText = Utils.escapeHTML(text).replace(/\n/g, '<br>');
+                let html = safeText;
+                if (actions && actions.length > 0) {
+                    actions.forEach(act => {
+                        if (act.type === 'task_created') {
+                            html += `<div class="ai-action-card"><h4><i class="fa-solid fa-circle-check" style="color:var(--success-color)"></i> Task Added</h4><p><strong>${Utils.escapeHTML(act.title)}</strong><br>${Utils.escapeHTML(act.date)} • ${Utils.escapeHTML(act.startTime)}-${Utils.escapeHTML(act.endTime)}</p></div>`;
+                        } else if (act.type === 'task_completed') {
+                            html += `<div class="ai-action-card"><h4><i class="fa-solid fa-check-double" style="color:var(--success-color)"></i> Marked Complete</h4><p>${Utils.escapeHTML(act.title)}</p></div>`;
+                        } else if (act.type === 'task_deleted') {
+                            html += `<div class="ai-action-card"><h4><i class="fa-solid fa-trash" style="color:var(--danger-color)"></i> Task Deleted</h4><p>${Utils.escapeHTML(act.title)}</p></div>`;
+                        } else if (act.type === 'task_rescheduled') {
+                            const details = [act.updates.date, act.updates.startTime && act.updates.endTime ? `${act.updates.startTime}-${act.updates.endTime}` : null].filter(Boolean).join(" • ");
+                            html += `<div class="ai-action-card"><h4><i class="fa-solid fa-clock-rotate-left" style="color:var(--warning-color)"></i> Rescheduled</h4><p><strong>${Utils.escapeHTML(act.title)}</strong><br>${Utils.escapeHTML(details)}</p></div>`;
+                        }
+                    });
+                }
+                html += `<div class="chat-timestamp">${Utils.escapeHTML(time)}</div>`;
+                bubble.innerHTML = html; 
+                container.appendChild(bubble); 
+                this.scrollToBottom();
+            },
+            
+            renderTypingIndicator() {
+                const container = document.getElementById('chat-messages'); const id = 'typing-' + Date.now();
+                const bubble = document.createElement('div'); bubble.id = id; bubble.className = `chat-bubble ai`;
+                bubble.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+                container.appendChild(bubble); this.scrollToBottom(); return id;
+            },
+            scrollToBottom() { const el = document.getElementById('chat-messages'); el.scrollTop = el.scrollHeight; }
+        };
+
+        // ==========================================
+        // CORE APP LOGIC
+        // ==========================================
+        window.app = {
+            init() {
+                window.state.scheduleDate = Utils.getLocalDate();
+                
+                const loaderTimeout = setTimeout(() => {
+                    const loader = document.getElementById('global-loader');
+                    if(loader) loader.style.opacity = '0';
+                    setTimeout(() => { if(loader) loader.style.display = 'none'; }, 500);
+                }, 3500);
+
+                document.getElementById('prev-day-btn').onclick = () => { 
+                    const d = new Date(window.state.scheduleDate + 'T12:00:00'); 
+                    d.setDate(d.getDate() - 1); 
+                    window.state.scheduleDate = Utils.getLocalDate(d); 
+                    this.renderSchedule(); 
+                };
+                document.getElementById('next-day-btn').onclick = () => { 
+                    const d = new Date(window.state.scheduleDate + 'T12:00:00'); 
+                    d.setDate(d.getDate() + 1); 
+                    window.state.scheduleDate = Utils.getLocalDate(d); 
+                    this.renderSchedule(); 
+                };
+                
+                const key = localStorage.getItem("openai_api_key");
+                if(key) {
+                    document.getElementById('setting-openai-key').value = key;
+                    document.getElementById('key-status-msg').innerHTML = '<i class="fa-solid fa-check"></i> Key Configured Locally';
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        window.uid = user.uid;
+                        document.getElementById('display-user-id').textContent = user.uid;
+                        this.loadSettings();
+                        this.loadCategories();
+                        this.setupRealtimeTasks();
+                        AIService.init();
+                        clearTimeout(loaderTimeout);
+                        const loader = document.getElementById('global-loader');
+                        if(loader) {
+                            loader.style.opacity = '0';
+                            setTimeout(() => loader.style.display = 'none', 500);
+                        }
+                    } else {
+                        document.getElementById('loader-text').textContent = "Authenticating securely...";
+                        signInAnonymously(auth).catch((error) => {
+                            console.error(error);
+                            clearTimeout(loaderTimeout);
+                            const loader = document.getElementById('global-loader');
+                            if(loader) loader.style.display = 'none';
+                            Toast.show("Firebase Auth not enabled. Running in limited local mode.", "warning");
+                            window.uid = "offline-" + Utils.generateId();
+                            document.getElementById('display-user-id').textContent = window.uid + " (Offline Mode)";
+                            this.loadSettings();
+                            this.loadCategories();
+                            this.setupRealtimeTasks();
+                            AIService.init();
+                        });
+                    }
+                });
+
+                this.setupGreeting();
+                if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+            },
+            
+            switchTab(tabId) {
+                document.querySelectorAll('.view-section, .nav-item').forEach(el => el.classList.remove('active'));
+                document.getElementById(`view-${tabId}`).classList.add('active');
+                const navEl = document.getElementById(`nav-${tabId}`); if(navEl) navEl.classList.add('active');
+                if (tabId === 'progress') this.renderProgress(); 
+                if (tabId === 'ai') window.AIService.scrollToBottom();
+            },
+
+            setupGreeting() {
+                const hour = new Date().getHours(); 
+                const greet = document.getElementById('greeting-time');
+                greet.textContent = hour < 12 ? "Morning" : hour < 18 ? "Afternoon" : "Evening";
+                const opts = { weekday: 'long', month: 'long', day: 'numeric' };
+                document.getElementById('current-date-display').textContent = new Date().toLocaleDateString(undefined, opts);
+            },
+
+            setupRealtimeTasks() {
+                if(window.state.listeners.tasks) window.state.listeners.tasks();
+                window.state.listeners.tasks = onSnapshot(
+                    collection(db, `users/${window.uid}/tasks`), 
+                    (snapshot) => {
+                        window.state.tasks = []; 
+                        snapshot.forEach(doc => window.state.tasks.push({ id: doc.id, ...doc.data() }));
+                        window.state.tasks.sort((a, b) => a.startTime.localeCompare(b.startTime)); 
+                        Utils.checkMissedTasks();
+                        this.renderAll();
+                    }, 
+                    (error) => {
+                        console.error("Task Sync Error", error);
+                        Toast.show("Network error syncing tasks.", "error");
+                    }
+                );
+            },
+
+            loadSettings() { 
+                if(window.state.listeners.settings) window.state.listeners.settings();
+                window.state.listeners.settings = onSnapshot(doc(db, `users/${window.uid}/settings/preferences`), (docSnap) => { 
+                    if (docSnap.exists()) { 
+                        window.state.settings = { ...window.state.settings, ...docSnap.data() }; 
+                        this.applySettings(); 
+                    } 
+                }); 
+            },
+
+            loadCategories() { 
+                if(window.state.listeners.categories) window.state.listeners.categories();
+                window.state.listeners.categories = onSnapshot(collection(db, `users/${window.uid}/categories`), (snapshot) => { 
+                    if (!snapshot.empty) window.state.categories = snapshot.docs.map(d => d.data().name); 
+                    this.renderCategoryOptions(); 
+                }); 
+            },
+
+           saveApiKey() {
+                const val = document.getElementById('setting-openai-key').value.trim();
+                if(val) {
+                    localStorage.setItem("openai_api_key", val);
+                    document.getElementById('key-status-msg').innerHTML = '<i class="fa-solid fa-check"></i> Key Configured Locally';
+                    Toast.show("API Key Saved Safely");
+                } else {
+                    localStorage.removeItem("openai_api_key");
+                    document.getElementById('key-status-msg').innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger-color)"></i> Key removed';
+                }
+            },
+
+            applySettings() {
+                document.getElementById('setting-theme').value = window.state.settings.theme; 
+                document.getElementById('setting-reminder').value = window.state.settings.defaultReminder; 
+                document.getElementById('setting-autoreschedule').checked = window.state.settings.autoReschedule;
+                document.body.dataset.theme = window.state.settings.theme === 'system' 
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') 
+                    : window.state.settings.theme;
+            },
+
+            async saveSettings() {
+                const s = window.state.settings;
+                s.theme = document.getElementById('setting-theme').value; 
+                s.defaultReminder = parseInt(document.getElementById('setting-reminder').value); 
+                s.autoReschedule = document.getElementById('setting-autoreschedule').checked;
+                try { 
+                    await setDoc(doc(db, `users/${window.uid}/settings/preferences`), s); 
+                    Toast.show("Settings saved"); 
+                } catch (e) { 
+                    Toast.show("Failed to save settings", "error"); 
+                }
+                this.applySettings();
+            },
+
+            async addCategory() { 
+                const input = document.getElementById('new-category-input'); 
+                const val = input.value.trim(); 
+                if (!val) return; 
+                if(window.state.categories.includes(val)) return Toast.show("Category exists", "warning");
+
+                try { 
+                    await setDoc(doc(db, `users/${window.uid}/categories`, Utils.generateId()), { name: val }); 
+                    input.value = ""; 
+                    Toast.show("Category added"); 
+                } catch(e) { 
+                    Toast.show("Error adding category", "error"); 
+                } 
+            },
+
+            renderCategoryOptions() {
+                ['task-category', 'filter-category'].forEach(id => { 
+                    const el = document.getElementById(id); 
+                    if(el) el.innerHTML = (id === 'filter-category' ? `<option value="All">All Categories</option>` : '') 
+                        + window.state.categories.map(c => `<option value="${Utils.escapeHTML(c)}">${Utils.escapeHTML(c)}</option>`).join(''); 
+                });
+                const list = document.getElementById('categories-list');
+                if(list) list.innerHTML = window.state.categories.map(c => `<span class="tag" style="background:var(--border-color); color:var(--text-primary); padding:6px 12px;">${Utils.escapeHTML(c)}</span>`).join('');
+            },
+
+            renderAll() { 
+                this.renderHome(); 
+                this.renderSchedule(); 
+                if (document.getElementById('view-progress').classList.contains('active')) this.renderProgress(); 
+            },
+
+            renderHome() {
+                const todayStr = Utils.getLocalDate();
+                const todayTasks = window.state.tasks.filter(t => t.date === todayStr);
+                const completed = todayTasks.filter(t => t.status === 'completed').length; 
+                const pct = todayTasks.length === 0 ? 0 : Math.round((completed / todayTasks.length) * 100);
+                document.getElementById('progress-text').textContent = `Completed: ${completed} / ${todayTasks.length}`; 
+                document.getElementById('progress-percent').textContent = `${pct}%`; 
+                document.getElementById('progress-bar-fill').style.width = `${pct}%`;
+                const nowTime = Utils.getLocalTime();
+                const nextTask = todayTasks.filter(t => t.status === 'pending' && t.endTime > nowTime)[0];
+                const nextCont = document.getElementById('next-task-container');
+                nextCont.innerHTML = nextTask ? this.buildTaskHTML(nextTask) : `<div class="empty-state" style="padding:15px;"><i class="fa-solid fa-mug-hot" style="font-size: 24px; margin-bottom: 5px;"></i><p>No upcoming tasks today!</p></div>`;
+                const listCont = document.getElementById('today-tasks-list');
+                listCont.innerHTML = todayTasks.length === 0 ? `<div class="empty-state"><p>Your day is clear.</p></div>` : todayTasks.map(t => this.buildTaskHTML(t)).join('');
+            },
+
+            renderSchedule() {
+                document.getElementById('schedule-date-display').textContent = Utils.isToday(window.state.scheduleDate) ? "Today" : Utils.formatDate(window.state.scheduleDate);
+                const search = document.getElementById('search-task').value.toLowerCase();
+                const catFilter = document.getElementById('filter-category').value; 
+                const statusFilter = document.getElementById('filter-status').value;
+                let filtered = window.state.tasks.filter(t => t.date === window.state.scheduleDate);
+                if (search) filtered = filtered.filter(t => t.title.toLowerCase().includes(search) || (t.description||"").toLowerCase().includes(search)); 
+                if (catFilter !== 'All') filtered = filtered.filter(t => t.category === catFilter); 
+                if (statusFilter !== 'All') filtered = filtered.filter(t => t.status === statusFilter);
+                const listCont = document.getElementById('schedule-tasks-list');
+                listCont.innerHTML = filtered.length === 0 ? `<div class="empty-state"><i class="fa-regular fa-calendar-xmark"></i><p>No tasks found.</p></div>` : filtered.map(t => this.buildTaskHTML(t)).join('');
+            },
+
+            buildTaskHTML(t) {
+                const isC = t.status === 'completed';
+                const safeTitle = Utils.escapeHTML(t.title);
+                const safeCat = Utils.escapeHTML(t.category);
+                return `<div class="task-item ${isC ? 'completed' : ''}" onclick="app.openTaskDetails('${Utils.escapeHTML(t.id)}')">
+                    <div class="task-checkbox" onclick="event.stopPropagation(); app.toggleComplete('${Utils.escapeHTML(t.id)}')">
+                        ${isC ? '<i class="fa-solid fa-check"></i>' : ''}
+                    </div>
+                    <div class="task-info">
+                        <div class="task-title">${safeTitle}</div>
+                        <div class="task-meta"><span><i class="fa-regular fa-clock"></i> ${Utils.formatTime(t.startTime)} - ${Utils.formatTime(t.endTime)}</span></div>
+                        <div style="margin-top:8px; display:flex; gap:6px; flex-wrap: wrap;">
+                            ${t.status !== 'pending' ? `<span class="tag status-${t.status}">${t.status.toUpperCase()}</span>` : ''}
+                            <span class="tag priority-${t.priority}">${t.priority}</span>
+                            <span class="tag" style="background:var(--border-color); color:var(--text-primary);">${safeCat}</span>
+                        </div>
+                    </div>
+                </div>`;
+            },
+
+            renderProgress() {
+                let [c, m, p] = [0, 0, 0]; 
+                const grouped = {};
+                window.state.tasks.forEach(t => { 
+                    if(t.status==='completed') c++; 
+                    else if(t.status==='missed') m++; 
+                    else p++; 
+                    if(!grouped[t.date]) grouped[t.date] = { c:0, t:0 }; 
+                    grouped[t.date].t++; 
+                    if(t.status==='completed') grouped[t.date].c++; 
+                });
+                let streak = 0;
+                let chk = new Date(); 
+                while(true) { 
+                    const ds = Utils.getLocalDate(chk);
+                    if(grouped[ds] && grouped[ds].c > 0) {
+                        streak++; 
+                        chk.setDate(chk.getDate() - 1);
+                    } else if(ds === Utils.getLocalDate()) {
+                        chk.setDate(chk.getDate() - 1);
+                    } else {
+                        break; 
+                    }
+                }
+                document.getElementById('stat-completed').textContent = c; 
+                document.getElementById('stat-missed').textContent = m; 
+                document.getElementById('stat-streak').textContent = streak;
+                const tdG = grouped[Utils.getLocalDate()] || {c:0,t:0}; 
+                document.getElementById('stat-today-pct').textContent = `${tdG.t===0 ? 0 : Math.round((tdG.c/tdG.t)*100)}%`;
+                const labels=[], dataC=[], dataT=[]; 
+                for(let i=6; i>=0; i--){
+                    const d = new Date(); d.setDate(d.getDate() - i); 
+                    const ds = Utils.getLocalDate(d);
+                    labels.push(d.toLocaleDateString(undefined, {weekday:'short'}));
+                    dataC.push(grouped[ds] ? grouped[ds].c : 0);
+                    dataT.push(grouped[ds] ? grouped[ds].t : 0);
+                }
+                if(window.state.chartInstance) {
+                    window.state.chartInstance.destroy();
+                }
+                const ctx = document.getElementById('progressChart').getContext('2d');
+                window.state.chartInstance = new Chart(ctx, { 
+                    type: 'bar', 
+                    data: { 
+                        labels, 
+                        datasets: [
+                            { label:'Completed', data:dataC, backgroundColor:'#10b981', borderRadius: 4 }, 
+                            { label:'Total', data:dataT, backgroundColor:'#e2e8f0', borderRadius: 4 }
+                        ] 
+                    }, 
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                        plugins: { legend: { position: 'bottom' } }
+                    } 
+                });
+            },
+
+            openModal(id) { 
+                if(id === 'modal-add-task') { 
+                    document.getElementById('form-task').reset(); 
+                    document.getElementById('task-id').value = ""; 
+                    document.getElementById('task-date').value = window.state.scheduleDate || Utils.getLocalDate(); 
+                    document.getElementById('modal-task-title').textContent = "Add Task"; 
+                } 
+                document.getElementById(id).classList.add('active'); 
+            },
+
+            closeModal(id) { 
+                document.getElementById(id).classList.remove('active'); 
+            },
+
+            async saveTask(e) {
+                e.preventDefault(); 
+                const btn = document.getElementById('btn-save-task');
+                btn.disabled = true;
+
+                try {
+                    const id = document.getElementById('task-id').value; 
+                    const t = { 
+                        title: document.getElementById('task-title').value.trim(), 
+                        description: document.getElementById('task-desc').value.trim(), 
+                        date: document.getElementById('task-date').value, 
+                        startTime: document.getElementById('task-start').value, 
+                        endTime: document.getElementById('task-end').value, 
+                        category: document.getElementById('task-category').value, 
+                        priority: document.getElementById('task-priority').value, 
+                        updatedAt: serverTimestamp() 
+                    };
+                    if (!t.title) throw new Error("Title is required.");
+                    if (t.startTime >= t.endTime) throw new Error("End time must be after start time.");
+                    if(id) { 
+                        await updateDoc(doc(db, `users/${window.uid}/tasks`, id), t); 
+                        Toast.show("Task updated successfully!"); 
+                    } else { 
+                        t.status = 'pending'; 
+                        t.createdAt = serverTimestamp(); 
+                        await addDoc(collection(db, `users/${window.uid}/tasks`), t); 
+                        Toast.show("Task added successfully!"); 
+                    } 
+                    this.closeModal('modal-add-task'); 
+                } catch(err) { 
+                    Toast.show(err.message || "Failed to save task", "error"); 
+                } finally {
+                    btn.disabled = false;
+                }
+            },
+
+            async toggleComplete(id) { 
+                const t = window.state.tasks.find(x => x.id === id); 
+                if(!t) return; 
+                const ns = t.status === 'completed' ? 'pending' : 'completed'; 
+                try { 
+                    await updateDoc(doc(db, `users/${window.uid}/tasks`, id), { 
+                        status: ns, 
+                        completedAt: ns === 'completed' ? serverTimestamp() : null 
+                    }); 
+                    if(ns === 'completed') Toast.show("Task completed! 🎉"); 
+                } catch(e) { 
+                    Toast.show("Update failed", "error"); 
+                } 
+            },
+
+            openTaskDetails(id) {
+                const t = window.state.tasks.find(x => x.id === id); 
+                if(!t) return; 
+                window.state.currentTask = t;
+                document.getElementById('detail-title').textContent = t.title; 
+                const statEl = document.getElementById('detail-status');
+                statEl.textContent = t.status.toUpperCase(); 
+                statEl.className = `tag status-${t.status}`;
+                const prioEl = document.getElementById('detail-priority');
+                prioEl.textContent = t.priority; 
+                prioEl.className = `tag priority-${t.priority}`; 
+                document.getElementById('detail-category').textContent = t.category;
+                document.getElementById('detail-date').textContent = Utils.formatDate(t.date); 
+                document.getElementById('detail-time').textContent = `${Utils.formatTime(t.startTime)} - ${Utils.formatTime(t.endTime)}`; 
+                document.getElementById('detail-desc').textContent = t.description || "No notes.";
+                const btn = document.getElementById('btn-complete-task'); 
+                btn.innerHTML = t.status === 'completed' ? '<i class="fa-solid fa-rotate-left"></i> Mark Pending' : '<i class="fa-solid fa-check"></i> Mark Complete'; 
+                btn.className = t.status === 'completed' ? "btn btn-secondary" : "btn btn-primary";
+                this.openModal('modal-task-details');
+            },
+
+            completeCurrentTask() { 
+                if(window.state.currentTask) { 
+                    this.toggleComplete(window.state.currentTask.id); 
+                    this.closeModal('modal-task-details'); 
+                } 
+            },
+
+            editCurrentTask() { 
+                const t = window.state.currentTask; 
+                if(!t) return; 
+                this.closeModal('modal-task-details'); 
+                this.openModal('modal-add-task'); 
+                document.getElementById('modal-task-title').textContent = "Edit Task"; 
+                document.getElementById('task-id').value = t.id; 
+                document.getElementById('task-title').value = t.title; 
+                document.getElementById('task-desc').value = t.description || "";
+                document.getElementById('task-date').value = t.date; 
+                document.getElementById('task-start').value = t.startTime; 
+                document.getElementById('task-end').value = t.endTime; 
+                document.getElementById('task-category').value = t.category;
+                document.getElementById('task-priority').value = t.priority || "Medium";
+            },
+
+            async deleteCurrentTask() { 
+                if(!window.state.currentTask) return;
+                if(!confirm("Are you sure you want to delete this task?")) return; 
+                try { 
+                    await deleteDoc(doc(db, `users/${window.uid}/tasks`, window.state.currentTask.id)); 
+                    Toast.show("Task deleted successfully."); 
+                    this.closeModal('modal-task-details'); 
+                } catch(e) { 
+                    Toast.show("Failed to delete task.", "error"); 
+                } 
+            },
+
+            async rescheduleCurrentTask() {
+                if(!window.state.currentTask) return; 
+                const d = new Date(window.state.currentTask.date + 'T12:00:00'); 
+                d.setDate(d.getDate() + 1); 
+                const nd = Utils.getLocalDate(d);
+                if(confirm(`Reschedule to tomorrow (${Utils.formatDate(nd)})?`)) { 
+                    try { 
+                        await updateDoc(doc(db, `users/${window.uid}/tasks`, window.state.currentTask.id), { 
+                            date: nd, 
+                            status: 'pending',
+                            updatedAt: serverTimestamp()
+                        }); 
+                        Toast.show("Task rescheduled!"); 
+                        this.closeModal('modal-task-details'); 
+                    } catch(e) { 
+                        Toast.show("Failed to reschedule.", "error"); 
+                    } 
+                }
+            },
+
+            exportData() { 
+                const cleanTasks = window.state.tasks.map(t => {
+                    const ct = {...t};
+                    delete ct.id; delete ct.createdAt; delete ct.updatedAt; delete ct.completedAt;
+                    return ct;
+                });
+                const payload = { 
+                    tasks: cleanTasks, 
+                    settings: window.state.settings, 
+                    categories: window.state.categories 
+                };
+                const a = document.createElement("a"); 
+                a.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })); 
+                a.download = `Routine_Backup_${Utils.getLocalDate()}.json`; 
+                a.click(); 
+            },
+
+            async importData(e) {
+                const file = e.target.files[0]; 
+                if (!file) return; 
+                const reader = new FileReader();
+                reader.onload = async (ev) => { 
+                    try { 
+                        const j = JSON.parse(ev.target.result); 
+                        if(!j.tasks || !Array.isArray(j.tasks)) throw new Error("Invalid backup file format.");
+                        document.getElementById('global-loader').style.display = 'flex'; 
+                        document.getElementById('loader-text').textContent = "Restoring data...";
+                        const b = writeBatch(db); 
+                        j.tasks.forEach(t => { 
+                            if(t.title && t.date && t.startTime && t.endTime) {
+                                t.createdAt = serverTimestamp();
+                                t.updatedAt = serverTimestamp();
+                                const r = doc(db, `users/${window.uid}/tasks`, Utils.generateId()); 
+                                b.set(r, t); 
+                            }
+                        }); 
+                        if(j.settings) b.set(doc(db, `users/${window.uid}/settings/preferences`), j.settings);
+                        if(j.categories && Array.isArray(j.categories)) {
+                            j.categories.forEach(c => {
+                                if(typeof c === 'string') b.set(doc(db, `users/${window.uid}/categories`, Utils.generateId()), { name: c });
+                            });
+                        }
+                        await b.commit(); 
+                        Toast.show("Data restored successfully!"); 
+                    } catch(err) { 
+                        console.error(err);
+                        Toast.show("Failed to import data: " + err.message, "error"); 
+                    } finally {
+                        document.getElementById('global-loader').style.display = 'none'; 
+                        e.target.value = ''; 
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+
+        // ==========================================
+        // BOOTSTRAP
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => window.app.init());
+    </script>
+</body>
+</html>
